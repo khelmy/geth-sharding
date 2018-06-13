@@ -14,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/sharding"
 	"github.com/ethereum/go-ethereum/sharding/contracts"
-	"github.com/ethereum/go-ethereum/sharding/params"
 	cli "gopkg.in/urfave/cli.v1"
 )
 
@@ -94,10 +93,6 @@ func (s *smcClient) DataDirPath() string {
 	return "/tmp/datadir"
 }
 
-func (s *smcClient) GetShardCount() (int64, error) {
-	return 100, nil
-}
-
 // Helper/setup methods.
 // TODO: consider moving these to common sharding testing package as the notary and smc tests
 // use them.
@@ -127,7 +122,7 @@ func TestIsAccountInNotaryPool(t *testing.T) {
 
 	txOpts := transactOpts()
 	// deposit in notary pool, then it should return true.
-	txOpts.Value = params.DefaultShardConfig.NotaryDeposit
+	txOpts.Value = sharding.NotaryDeposit
 	if _, err := smc.RegisterNotary(txOpts); err != nil {
 		t.Fatalf("Failed to deposit: %v", err)
 	}
@@ -143,7 +138,7 @@ func TestIsAccountInNotaryPool(t *testing.T) {
 
 func TestJoinNotaryPool(t *testing.T) {
 	backend, smc := setup()
-	client := &smcClient{smc: smc, t: t}
+	client := &smcClient{smc: smc, depositFlag: false, t: t}
 	// There should be no notary initially.
 	numNotaries, err := smc.NotaryPoolLength(&bind.CallOpts{})
 	if err != nil {
@@ -154,13 +149,13 @@ func TestJoinNotaryPool(t *testing.T) {
 	}
 
 	client.SetDepositFlag(false)
-	err = joinNotaryPool(params.DefaultShardConfig, client)
+	err = joinNotaryPool(client)
 	if err == nil {
 		t.Error("Joined notary pool while --deposit was not present")
 	}
 
 	client.SetDepositFlag(true)
-	err = joinNotaryPool(params.DefaultShardConfig, client)
+	err = joinNotaryPool(client)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +171,7 @@ func TestJoinNotaryPool(t *testing.T) {
 	}
 
 	// Trying to join while deposited should do nothing
-	err = joinNotaryPool(params.DefaultShardConfig, client)
+	err = joinNotaryPool(client)
 	if err != nil {
 		t.Error(err)
 	}
